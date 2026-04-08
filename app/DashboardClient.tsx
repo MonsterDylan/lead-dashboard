@@ -6,6 +6,7 @@ import type { Lead, Drop } from "@/lib/types";
 import StatCard from "./components/StatCard";
 import ScoreBadge from "./components/ScoreBadge";
 import StatusBadge from "./components/StatusBadge";
+import OutreachTab from "./components/OutreachTab";
 
 function toPacific(iso: string): Date {
   return new Date(
@@ -39,7 +40,7 @@ function fmtShortDay(d: Date) {
   });
 }
 
-type Tab = "overview" | "leads" | "drops";
+type Tab = "overview" | "leads" | "drops" | "outreach";
 
 export default function DashboardClient() {
   const router = useRouter();
@@ -107,6 +108,7 @@ export default function DashboardClient() {
     { id: "overview", label: "Overview" },
     { id: "leads", label: "All Leads" },
     { id: "drops", label: "Drop Log" },
+    { id: "outreach", label: "Outreach" },
   ];
 
   return (
@@ -568,6 +570,9 @@ export default function DashboardClient() {
                 </div>
               </div>
             )}
+
+            {/* OUTREACH TAB */}
+            {tab === "outreach" && <OutreachTab />}
           </>
         )}
       </main>
