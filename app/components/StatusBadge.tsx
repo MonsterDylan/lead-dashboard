@@ -4,6 +4,7 @@ interface StatusBadgeProps {
 
 const styles: Record<string, string> = {
   detected: "bg-blue-50 text-blue-600",
+  sent_to_n8n: "bg-orange-50 text-orange-600",
   scored: "bg-purple-50 text-purple-600",
   purchased: "bg-[var(--success-light)] text-[var(--success)]",
   skipped: "bg-gray-100 text-gray-500",

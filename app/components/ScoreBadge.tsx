@@ -13,10 +13,10 @@ export default function ScoreBadge({ score }: ScoreBadgeProps) {
 
   let bg: string;
   let text: string;
-  if (score >= 7) {
+  if (score >= 4) {
     bg = "bg-[var(--success-light)]";
     text = "text-[var(--success)]";
-  } else if (score >= 5) {
+  } else if (score >= 3) {
     bg = "bg-[var(--warning-light)]";
     text = "text-[var(--warning)]";
   } else {
@@ -28,7 +28,7 @@ export default function ScoreBadge({ score }: ScoreBadgeProps) {
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${bg} ${text}`}
     >
-      {score}/10
+      {score}/5
     </span>
   );
 }

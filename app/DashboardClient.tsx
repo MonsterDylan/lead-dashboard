@@ -83,7 +83,7 @@ export default function DashboardClient() {
   const genuineDrops = drops.filter((d) => (d.prev_total ?? 0) > 0);
 
   const scored = newLeads.filter((l) => l.ai_score !== null);
-  const highQuality = scored.filter((l) => (l.ai_score ?? 0) >= 5);
+  const highQuality = scored.filter((l) => (l.ai_score ?? 0) >= 4);
   const preBought = newLeads.filter(
     (l) =>
       (l.sale !== null && l.sale !== 0) ||
@@ -227,7 +227,7 @@ export default function DashboardClient() {
                     color="blue"
                   />
                   <StatCard
-                    label="High Quality (5+)"
+                    label="High Quality (4+)"
                     value={highQuality.length}
                     color="green"
                   />
