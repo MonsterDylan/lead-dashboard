@@ -11,9 +11,10 @@ interface Props {
     email: string;
     linkedin_url: string;
   };
+  onSuccess?: (email: string) => void;
 }
 
-export default function WealthboxModal({ open, onClose, defaults }: Props) {
+export default function WealthboxModal({ open, onClose, defaults, onSuccess }: Props) {
   const [form, setForm] = useState(defaults);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<"success" | "error" | null>(null);
@@ -40,6 +41,7 @@ export default function WealthboxModal({ open, onClose, defaults }: Props) {
 
       if (res.ok) {
         setResult("success");
+        if (form.email) onSuccess?.(form.email);
       } else {
         const json = await res.json().catch(() => ({}));
         setErrorMsg(json.error ?? `Failed (${res.status})`);

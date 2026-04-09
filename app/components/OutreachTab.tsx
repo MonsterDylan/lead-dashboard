@@ -15,6 +15,7 @@ export default function OutreachTab() {
   const [previewLead, setPreviewLead] = useState<OutreachLead | null>(null);
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set());
   const [wbLead, setWbLead] = useState<OutreachLead | null>(null);
+  const [wbEmails, setWbEmails] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -24,13 +25,39 @@ export default function OutreachTab() {
       return;
     }
     const json = await res.json();
-    setLeads(json.leads ?? []);
+    const fetched: OutreachLead[] = json.leads ?? [];
+    setLeads(fetched);
     setLoading(false);
+
+    const emails = fetched
+      .map((l) => l.email)
+      .filter((e): e is string => !!e);
+    if (emails.length === 0) return;
+
+    try {
+      const wbRes = await fetch(
+        `/api/outreach/wealthbox?emails=${encodeURIComponent(emails.join(","))}`
+      );
+      if (wbRes.ok) {
+        const wbJson = await wbRes.json();
+        const found = new Set<string>();
+        for (const [email, exists] of Object.entries(wbJson.emails ?? {})) {
+          if (exists) found.add(email.toLowerCase());
+        }
+        setWbEmails(found);
+      }
+    } catch {
+      // Wealthbox check is non-critical
+    }
   }, [router]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  function markInWealthbox(email: string) {
+    setWbEmails((prev) => new Set(prev).add(email.toLowerCase()));
+  }
 
   async function toggleEnabled(lead: OutreachLead) {
     setTogglingIds((prev) => new Set(prev).add(lead.id));
@@ -173,7 +200,7 @@ export default function OutreachTab() {
                   <th className="px-4 py-3 font-medium">Email 2</th>
                   <th className="px-4 py-3 font-medium">Email 3</th>
                   <th className="px-4 py-3 font-medium">Source</th>
-                  <th className="px-4 py-3 font-medium w-10"></th>
+                  <th className="px-4 py-3 font-medium text-center">Wealthbox</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--card-border)]">
@@ -307,26 +334,44 @@ export default function OutreachTab() {
                           {l.source === "csv_import" ? "CSV" : "Live"}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => setWbLead(l)}
-                          className="p-1.5 rounded-lg hover:bg-[var(--background)] transition-colors cursor-pointer group"
-                          title="Add to Wealthbox CRM"
-                        >
-                          <svg
-                            className="w-4 h-4 text-[var(--muted)] group-hover:text-[var(--accent)]"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
+                      <td className="px-4 py-3 text-center">
+                        {l.email && wbEmails.has(l.email.toLowerCase()) ? (
+                          <span title="Already in Wealthbox">
+                            <svg
+                              className="w-5 h-5 text-green-500 inline-block"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              strokeWidth={2}
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
+                              />
+                            </svg>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setWbLead(l)}
+                            className="p-1.5 rounded-lg hover:bg-[var(--background)] transition-colors cursor-pointer group"
+                            title="Add to Wealthbox CRM"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="w-4 h-4 text-[var(--muted)] group-hover:text-[var(--accent)]"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              strokeWidth={1.5}
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -378,6 +423,9 @@ export default function OutreachTab() {
             last_name: wbLead.last_name ?? "",
             email: wbLead.email ?? "",
             linkedin_url: wbLead.linkedin_url ?? "",
+          }}
+          onSuccess={(email) => {
+            if (email) markInWealthbox(email);
           }}
         />
       )}
