@@ -228,15 +228,26 @@ export default function DashboardClient() {
           >
             <p className="font-medium">Could not load leads from Supabase</p>
             <p className="mt-1 font-mono text-xs break-words">{apiError}</p>
-            <p className="mt-2 text-red-700">
-              Check Vercel → Project → Settings → Environment Variables for{" "}
-              <code className="rounded bg-red-100 px-1">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
-              and{" "}
-              <code className="rounded bg-red-100 px-1">
-                NEXT_PUBLIC_SUPABASE_ANON_KEY
-              </code>
-              , then redeploy.
-            </p>
+            {apiError.includes("client_notes") ? (
+              <p className="mt-2 text-red-700">
+                Your Supabase <code className="rounded bg-red-100 px-1">leads</code> table is
+                missing the <code className="rounded bg-red-100 px-1">client_notes</code>{" "}
+                column the app expects. In Supabase → SQL Editor, run:{" "}
+                <code className="block mt-2 rounded bg-red-100 p-2 text-xs font-mono break-all">
+                  ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS client_notes TEXT;
+                </code>
+              </p>
+            ) : (
+              <p className="mt-2 text-red-700">
+                Check Vercel → Project → Settings → Environment Variables for{" "}
+                <code className="rounded bg-red-100 px-1">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
+                and{" "}
+                <code className="rounded bg-red-100 px-1">
+                  NEXT_PUBLIC_SUPABASE_ANON_KEY
+                </code>
+                , then redeploy.
+              </p>
+            )}
           </div>
         )}
         {loading ? (
