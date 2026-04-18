@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { Lead, Drop } from "@/lib/types";
+import { normalizeDropLeadIds } from "@/lib/dropIds";
 import StatCard from "./components/StatCard";
 import ScoreBadge from "./components/ScoreBadge";
 import StatusBadge from "./components/StatusBadge";
@@ -51,15 +52,28 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
   const [detailApptUuid, setDetailApptUuid] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setApiError(null);
     const res = await fetch(`/api/leads?days=${days}`);
     if (res.status === 401) {
       router.push("/login");
       return;
     }
-    const json = await res.json();
+    const json = (await res.json()) as {
+      leads?: Lead[];
+      drops?: Drop[];
+      error?: string;
+    };
+    if (!res.ok) {
+      setApiError(json.error ?? `Request failed (${res.status})`);
+      setLeads([]);
+      setDrops([]);
+      setLoading(false);
+      return;
+    }
     setLeads(json.leads ?? []);
     setDrops(json.drops ?? []);
     setLoading(false);
@@ -86,15 +100,16 @@ export default function DashboardClient() {
   const baselineIds = new Set<string>();
   for (const d of drops) {
     if ((d.prev_total ?? 0) === 0) {
-      for (const id of d.new_lead_ids ?? []) baselineIds.add(id);
+      for (const id of normalizeDropLeadIds(d.new_lead_ids)) baselineIds.add(id);
     }
   }
+  /** Leads first seen after the initial “full marketplace snapshot” drop (prev_total = 0). */
   const newLeads = leads.filter((l) => !baselineIds.has(l.appt_uuid));
   const genuineDrops = drops.filter((d) => (d.prev_total ?? 0) > 0);
 
-  const scored = newLeads.filter((l) => l.ai_score !== null);
+  const scored = leads.filter((l) => l.ai_score !== null);
   const highQuality = scored.filter((l) => (l.ai_score ?? 0) >= 4);
-  const preBought = newLeads.filter(
+  const preBought = leads.filter(
     (l) =>
       (l.sale !== null && l.sale !== 0) ||
       (l.interested_users !== null && l.interested_users !== undefined)
@@ -108,7 +123,7 @@ export default function DashboardClient() {
     .reduce((s, d) => s + d.new_lead_count, 0);
 
   const dayGroups: Record<string, Lead[]> = {};
-  for (const l of newLeads) {
+  for (const l of leads) {
     const pdt = toPacific(l.first_seen_at);
     const key = pdt.toISOString().slice(0, 10);
     (dayGroups[key] ??= []).push(l);
@@ -156,6 +171,7 @@ export default function DashboardClient() {
                 <option value={14}>Last 14 days</option>
                 <option value={30}>Last 30 days</option>
                 <option value={90}>Last 90 days</option>
+                <option value={365}>Last 365 days</option>
               </select>
               <button
                 onClick={fetchData}
@@ -205,6 +221,24 @@ export default function DashboardClient() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {apiError && (
+          <div
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            role="alert"
+          >
+            <p className="font-medium">Could not load leads from Supabase</p>
+            <p className="mt-1 font-mono text-xs break-words">{apiError}</p>
+            <p className="mt-2 text-red-700">
+              Check Vercel → Project → Settings → Environment Variables for{" "}
+              <code className="rounded bg-red-100 px-1">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
+              and{" "}
+              <code className="rounded bg-red-100 px-1">
+                NEXT_PUBLIC_SUPABASE_ANON_KEY
+              </code>
+              , then redeploy.
+            </p>
+          </div>
+        )}
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="flex items-center gap-3 text-[var(--muted)]">
@@ -232,8 +266,8 @@ export default function DashboardClient() {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <StatCard
-                    label="New Leads"
-                    value={newLeads.length}
+                    label="Leads in range"
+                    value={leads.length}
                     color="blue"
                   />
                   <StatCard
@@ -251,13 +285,35 @@ export default function DashboardClient() {
                     value={
                       Object.keys(dayGroups).length > 0
                         ? (
-                            newLeads.length / Object.keys(dayGroups).length
+                            leads.length / Object.keys(dayGroups).length
                           ).toFixed(1)
                         : "0"
                     }
                     color="gray"
                   />
                 </div>
+                {leads.length > 0 && newLeads.length < leads.length && (
+                  <p className="text-xs text-[var(--muted)]">
+                    {newLeads.length} of {leads.length} leads count as “new” after the
+                    first baseline snapshot drop (where the scraper recorded the full
+                    marketplace at once). All {leads.length} appear in the All Leads
+                    table.
+                  </p>
+                )}
+                {leads.length === 0 && !loading && !apiError && (
+                  <p className="text-xs text-[var(--muted)]">
+                    No rows returned for this date range. Try{" "}
+                    <strong>Last 365 days</strong>, or confirm in Supabase that{" "}
+                    <code className="rounded bg-[var(--background)] px-1 text-[11px]">
+                      leads.first_seen_at
+                    </code>{" "}
+                    falls inside the window. The comment backfill only updates{" "}
+                    <code className="rounded bg-[var(--background)] px-1 text-[11px]">
+                      comments
+                    </code>
+                    — it does not remove leads.
+                  </p>
+                )}
 
                 {/* Window Breakdown */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -409,10 +465,13 @@ export default function DashboardClient() {
                 <div className="px-5 py-4 border-b border-[var(--card-border)] flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="font-semibold">
-                      All Leads ({newLeads.length})
+                      All Leads ({leads.length})
                     </h2>
                     <p className="text-xs text-[var(--muted)] mt-0.5">
-                      Click a row or &quot;View&quot; for full comments, Catchlight profile, and raw API fields.
+                      Every lead with{" "}
+                      <code className="text-[11px]">first_seen_at</code> in this range.
+                      Click a row or &quot;View&quot; for full comments, Catchlight profile,
+                      and raw API fields.
                     </p>
                   </div>
                 </div>
@@ -434,7 +493,7 @@ export default function DashboardClient() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--card-border)]">
-                      {newLeads.length === 0 ? (
+                      {leads.length === 0 ? (
                         <tr>
                           <td
                             colSpan={9}
@@ -444,7 +503,7 @@ export default function DashboardClient() {
                           </td>
                         </tr>
                       ) : (
-                        [...newLeads].reverse().map((l) => {
+                        [...leads].reverse().map((l) => {
                           const pdt = toPacific(l.first_seen_at);
                           return (
                             <tr
