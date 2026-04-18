@@ -7,6 +7,7 @@ import StatCard from "./components/StatCard";
 import ScoreBadge from "./components/ScoreBadge";
 import StatusBadge from "./components/StatusBadge";
 import OutreachTab from "./components/OutreachTab";
+import LeadDetailModal from "./components/LeadDetailModal";
 
 function toPacific(iso: string): Date {
   return new Date(
@@ -49,6 +50,7 @@ export default function DashboardClient() {
   const [days, setDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
+  const [detailApptUuid, setDetailApptUuid] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -66,6 +68,14 @@ export default function DashboardClient() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  function handleNotesSaved(apptUuid: string, clientNotes: string) {
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.appt_uuid === apptUuid ? { ...l, client_notes: clientNotes } : l
+      )
+    );
+  }
 
   async function handleLogout() {
     await fetch("/api/logout", { method: "POST" });
@@ -396,10 +406,15 @@ export default function DashboardClient() {
             {/* LEADS TAB */}
             {tab === "leads" && (
               <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-[var(--card-border)] flex items-center justify-between">
-                  <h2 className="font-semibold">
-                    All Leads ({newLeads.length})
-                  </h2>
+                <div className="px-5 py-4 border-b border-[var(--card-border)] flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold">
+                      All Leads ({newLeads.length})
+                    </h2>
+                    <p className="text-xs text-[var(--muted)] mt-0.5">
+                      Click a row or &quot;View&quot; for full comments, Catchlight profile, and raw API fields.
+                    </p>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -413,13 +428,16 @@ export default function DashboardClient() {
                         <th className="px-4 py-3 font-medium">Credits</th>
                         <th className="px-4 py-3 font-medium">AI Score</th>
                         <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="px-4 py-3 font-medium w-24 text-right">
+                          Details
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--card-border)]">
                       {newLeads.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={8}
+                            colSpan={9}
                             className="px-4 py-8 text-center text-[var(--muted)]"
                           >
                             No leads in this period
@@ -431,7 +449,16 @@ export default function DashboardClient() {
                           return (
                             <tr
                               key={l.appt_uuid}
-                              className="hover:bg-[var(--background)] transition-colors"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setDetailApptUuid(l.appt_uuid)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  setDetailApptUuid(l.appt_uuid);
+                                }
+                              }}
+                              className="hover:bg-[var(--background)] transition-colors cursor-pointer"
                             >
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <div className="font-mono text-xs">
@@ -478,6 +505,18 @@ export default function DashboardClient() {
                               </td>
                               <td className="px-4 py-3">
                                 <StatusBadge status={l.status} />
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDetailApptUuid(l.appt_uuid);
+                                  }}
+                                  className="text-xs font-medium text-[var(--accent)] hover:underline cursor-pointer"
+                                >
+                                  View
+                                </button>
                               </td>
                             </tr>
                           );
@@ -576,6 +615,13 @@ export default function DashboardClient() {
           </>
         )}
       </main>
+
+      <LeadDetailModal
+        open={detailApptUuid !== null}
+        apptUuid={detailApptUuid}
+        onClose={() => setDetailApptUuid(null)}
+        onSaved={handleNotesSaved}
+      />
     </div>
   );
 }

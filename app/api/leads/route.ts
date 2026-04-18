@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const { data: leads, error: leadsErr } = await supabase
     .from("leads")
     .select(
-      "appt_uuid, first_seen_at, published_time, first_name, last_name, full_name, state, age, income, investable_assets, assets_min, credit_cost, app_type, comments, topics, sale, interested_users, status, ai_score, ai_reasoning"
+      "appt_uuid, first_seen_at, published_time, first_name, last_name, full_name, state, age, age_range, income, investable_assets, assets_min, credit_cost, app_type, comments, topics, sale, interested_users, status, ai_score, ai_reasoning, client_notes"
     )
     .gte("first_seen_at", cutoff)
     .order("first_seen_at", { ascending: true });

@@ -7,6 +7,7 @@ export interface Lead {
   full_name: string | null;
   state: string | null;
   age: number | null;
+  age_range: string | null;
   income: string | null;
   investable_assets: string | null;
   assets_min: number | null;
@@ -19,6 +20,21 @@ export interface Lead {
   status: string | null;
   ai_score: number | null;
   ai_reasoning: string | null;
+  client_notes: string | null;
+}
+
+/** Full lead row for the detail modal (includes raw API payload and outreach enrichment). */
+export interface LeadOutreachSnapshot {
+  id: number;
+  linkedin_url: string | null;
+  email: string | null;
+  email_confidence: string | null;
+  apify_profile_data: Record<string, unknown> | null;
+}
+
+export interface LeadDetail extends Lead {
+  raw_json: Record<string, unknown> | null;
+  outreach: LeadOutreachSnapshot | null;
 }
 
 export interface Drop {
